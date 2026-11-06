@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getFavorites, removeFavorite } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 
 function Favorites() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ function Favorites() {
         previous.filter((item) => item._id !== favoriteId)
       );
 
-      setMessage("Destination removed from your favorites.");
+      setMessage(t("fav_removed_success"));
     } catch (err) {
       setError(err.message || "Unable to remove favorite.");
     }
@@ -56,13 +58,13 @@ function Favorites() {
     return (
       <main className="favorites-page">
         <div className="favorites-header">
-          <span className="ai-header-badge">❤️ Bookmarked Spots</span>
-          <h1>My Favorites</h1>
-          <p>Please login to your account to view and manage your saved destinations.</p>
+          <span className="ai-header-badge">❤️ {t("fav_badge")}</span>
+          <h1>{t("fav_title")}</h1>
+          <p>{t("fav_login_required")}</p>
         </div>
         <div style={{ textAlign: "center", marginTop: "24px" }}>
           <Link to="/login" className="home-btn primary" style={{ display: "inline-block" }}>
-            Login Now
+            {t("fav_login_btn")}
           </Link>
         </div>
       </main>
@@ -72,31 +74,31 @@ function Favorites() {
   return (
     <main className="favorites-page">
       <div className="favorites-header">
-        <span className="ai-header-badge">❤️ Bookmarked Spots</span>
-        <h1>My Favorite Destinations</h1>
-        <p>Your saved places, easily accessible for your next adventure.</p>
+        <span className="ai-header-badge">❤️ {t("fav_badge")}</span>
+        <h1>{t("fav_title")}</h1>
+        <p>{t("fav_subtitle")}</p>
       </div>
 
       {message && <p className="success-message">{message}</p>}
       {error && <p className="error-message">{error}</p>}
 
       {loading ? (
-        <p>Loading your saved destinations...</p>
+        <p>{t("fav_loading")}</p>
       ) : favorites.length === 0 ? (
         <div className="ai-tool-card" style={{ textAlign: "center", padding: "40px" }}>
-          <h3>No favorites saved yet!</h3>
-          <p>Browse our destinations and click "Add to Favorites" on places you love.</p>
+          <h3>{t("fav_empty_title")}</h3>
+          <p>{t("fav_empty_subtitle")}</p>
           <Link
             to="/explore"
             className="home-btn primary"
             style={{ display: "inline-block", marginTop: "16px" }}
           >
-            Explore Destinations
+            {t("fav_explore_btn")}
           </Link>
         </div>
       ) : (
         <section className="places-section">
-          <h2>Saved Destinations ({favorites.length})</h2>
+          <h2>{t("fav_saved_heading", { count: favorites.length })}</h2>
           <div className="places-grid">
             {favorites.map((favorite) => {
               const place = favorite.place;
@@ -141,7 +143,7 @@ function Favorites() {
                       type="button"
                       onClick={() => handleRemove(favorite._id)}
                     >
-                      ❤️ Remove from Favorites
+                      ❤️ {t("fav_remove_btn")}
                     </button>
                   </div>
                 </div>

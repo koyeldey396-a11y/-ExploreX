@@ -1,9 +1,13 @@
+import { useLanguage } from "../context/LanguageContext";
+
 function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer>
-      <p>ExploreX — Explore. Discover. Experience.</p>
-      <p>Discover places, explore history, and plan your next journey.</p>
-      <p>© 2026 ExploreX. All rights reserved.</p>
+      <p>{t("footer_tagline")}</p>
+      <p>{t("footer_desc")}</p>
+      <p>{t("footer_rights")}</p>
     </footer>
   );
 }

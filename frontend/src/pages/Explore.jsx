@@ -491,9 +491,9 @@ function Explore() {
   return (
     <main className="explore-page">
       <div className="explore-header-section">
-        <h1>Explore Destinations</h1>
+        <h1>{t("explore_title")}</h1>
         <p className="explore-header-tagline">
-          Discover countries, states, cities, monuments, and natural attractions across India and the globe.
+          {t("explore_subtitle")}
         </p>
       </div>
 
@@ -619,7 +619,7 @@ function Explore() {
       {globalDiscoveryList.length > 0 && searchQuery.trim() && (
         <section className="explore-global-discovery-section">
           <div className="global-discovery-header">
-            <h2>🌐 Global Discovery Results for "{searchQuery}"</h2>
+            <h2>🌐 {t("explore_global_results", { query: searchQuery })}</h2>
             <span className="global-discovery-count">
               Found {globalDiscoveryList.length} global geographic destinations
             </span>
@@ -659,7 +659,7 @@ function Explore() {
                       to={`/destination/${item.slug}`}
                       className="global-view-guide-btn"
                     >
-                      🧭 View Complete Travel Guide →
+                      🧭 {t("explore_view_guide")}
                     </Link>
                     {item.coordinates && (
                       <Link
@@ -686,7 +686,7 @@ function Explore() {
               className={`explore-pill ${selectedCategory === "All" ? "active" : ""}`}
               onClick={() => setSelectedCategory("All")}
             >
-              All Categories
+              {t("explore_cat_all")}
             </button>
             {CATEGORIES.map((cat) => (
               <button
@@ -719,7 +719,7 @@ function Explore() {
 
       {/* ================= 4. ADD / EDIT DESTINATION FORM ================= */}
       <section className="add-place-section">
-        <h2>{editingId ? "Edit Destination" : "Add a New Destination"}</h2>
+        <h2>{editingId ? t("explore_edit_title") : t("explore_add_title")}</h2>
 
         <form onSubmit={handleSubmit}>
           <input
@@ -814,7 +814,7 @@ function Explore() {
 
           <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
             <button type="submit" style={{ flex: 1 }}>
-              {editingId ? "Update Destination" : "Add Destination"}
+              {editingId ? t("common_save") : t("explore_btn_add")}
             </button>
 
             {editingId && (
@@ -857,8 +857,8 @@ function Explore() {
           <p>Loading destinations...</p>
         ) : filteredPlaces.length === 0 ? (
           <div className="ai-tool-card" style={{ textAlign: "center", padding: "40px" }}>
-            <h3>No local destinations match your criteria</h3>
-            <p>Try clearing your search or checking the Global Discovery results above.</p>
+            <h3>{t("explore_no_match")}</h3>
+            <p>{t("explore_no_match_sub")}</p>
           </div>
         ) : (
           <div className="places-grid">
@@ -933,8 +933,8 @@ function Explore() {
                       {favoriteLoading === place._id
                         ? "Please wait..."
                         : isFavorite(place._id)
-                        ? "❤️ Remove Favorite"
-                        : "🤍 Add to Favorites"}
+                        ? ("❤️ " + t("fav_remove_btn"))
+                        : ("🤍 " + t("explore_btn_add_fav"))}
                     </button>
 
                     {/* NAVIGATE BUTTON */}
@@ -976,7 +976,7 @@ function Explore() {
         <div className="review-modal-backdrop" onClick={closeReviewModal}>
           <div className="review-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="review-modal-header">
-              <h2>Reviews for {reviewModalPlace.name}</h2>
+              <h2>{t("explore_reviews_for", { name: reviewModalPlace.name })}</h2>
               <button
                 type="button"
                 className="review-modal-close"
@@ -1012,7 +1012,7 @@ function Explore() {
 
             {/* Add Review Form */}
             <div className="review-write-section">
-              <h3>Leave a Review</h3>
+              <h3>{t("explore_leave_review")}</h3>
               {!user ? (
                 <p>
                   Please <Link to="/login" style={{ color: "#b47a45", fontWeight: "bold" }}>Login</Link> to rate and review this destination.
@@ -1021,7 +1021,7 @@ function Explore() {
                 <form onSubmit={handleAddReview}>
                   <div style={{ marginBottom: "12px" }}>
                     <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>
-                      Your Rating:
+                      {t("explore_rating_label")}
                     </label>
                     <div className="star-rating-picker">
                       {[1, 2, 3, 4, 5].map((star) => (
@@ -1053,7 +1053,7 @@ function Explore() {
                   </div>
 
                   <textarea
-                    placeholder="Share your experience: what to see, best photography spots, food recommendations, or travel advice..."
+                    placeholder={t("explore_comment_placeholder")}
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
                     rows={3}
@@ -1067,7 +1067,7 @@ function Explore() {
                     style={{ marginTop: "10px" }}
                     disabled={reviewSubmitting || !commentInput.trim()}
                   >
-                    {reviewSubmitting ? "Submitting Review..." : "Submit Review"}
+                    {reviewSubmitting ? t("explore_submitting_review") : t("explore_btn_submit_review")}
                   </button>
                 </form>
               )}
@@ -1075,7 +1075,7 @@ function Explore() {
 
             {/* List of Reviews */}
             <div className="review-list-section">
-              <h3>Traveler Feedback ({getPlaceReviews(reviewModalPlace._id).length})</h3>
+              <h3>{t("explore_feedback_heading", { count: getPlaceReviews(reviewModalPlace._id).length })}</h3>
 
               {getPlaceReviews(reviewModalPlace._id).length === 0 ? (
                 <p style={{ color: "#777", fontStyle: "italic" }}>

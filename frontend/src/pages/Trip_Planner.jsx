@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getTrips, createTrip, updateTrip, deleteTrip } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 
 const emptyForm = {
   destination: "",
@@ -21,7 +22,8 @@ function formatDate(date) {
 
 function Trip_Planner() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
 
   // Query parameters from Destination_Details cross-linking
   const queryDestination = searchParams.get("destination");
@@ -83,7 +85,6 @@ function Trip_Planner() {
         const parsed = JSON.parse(queryItinerary);
         if (Array.isArray(parsed) && parsed.length > 0) {
           activeItinerary = parsed;
-          // Store in sessionStorage in case user needs to log in
           sessionStorage.setItem(
             "explorex_pending_itinerary",
             JSON.stringify({
@@ -158,98 +159,95 @@ function Trip_Planner() {
       endDate: trip.endDate ? trip.endDate.slice(0, 10) : "",
       duration: trip.duration || 1,
       budget: trip.budget || "",
-      interests: Array.isArray(trip.interests) ? trip.interests.join(", ") : "",
+      interests: Array.isArray(trip.interests)
+        ? trip.interests.join(", ")
+        : trip.interests || "",
     });
-    // Set existing trip itinerary if available
-    if (trip.itinerary && trip.itinerary.length > 0) {
-      setTransferredItinerary(trip.itinerary);
-    }
-    setMessage("");
-    setError("");
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 300, behavior: "smooth" });
   };
 
   const cancelEdit = () => {
     setEditingTripId(null);
     setFormData({ ...emptyForm });
-    setMessage("");
-    setError("");
   };
 
+  // Dismiss transferred itinerary preview
   const dismissTransferredItinerary = () => {
     setTransferredItinerary(null);
     sessionStorage.removeItem("explorex_pending_itinerary");
   };
 
-  // Save or Update a trip in MongoDB
   const handleSubmit = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-
+    e.preventDefault();
     setError("");
     setMessage("");
 
     if (!user) {
-      setError("Please login before creating or updating a trip.");
+      setError(t("trip_login_required"));
       return;
     }
 
     if (!formData.destination.trim()) {
-      setError("Destination is required.");
+      setError("Please provide a destination.");
       return;
     }
 
-    if (formData.startDate && formData.endDate) {
-      if (new Date(formData.endDate) < new Date(formData.startDate)) {
-        setError("End date cannot be earlier than start date.");
-        return;
-      }
+    if (!formData.startDate || !formData.endDate) {
+      setError("Please select both start and end dates.");
+      return;
+    }
+
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      setError("End date cannot be earlier than start date.");
+      return;
+    }
+
+    const payload = {
+      destination: formData.destination.trim(),
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      duration: Number(formData.duration) || 1,
+      budget: Number(formData.budget) || 0,
+      interests: formData.interests
+        ? formData.interests
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [],
+    };
+
+    // Attach transferred itinerary if available
+    if (transferredItinerary) {
+      payload.itinerary = transferredItinerary;
     }
 
     try {
       setSaving(true);
 
-      const tripData = {
-        destination: formData.destination.trim(),
-        startDate: formData.startDate || undefined,
-        endDate: formData.endDate || undefined,
-        duration: Number(formData.duration) || 1,
-        budget: Number(formData.budget) || 0,
-        interests: formData.interests
-          ? formData.interests
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)
-          : [],
-        itinerary: transferredItinerary || undefined,
-      };
-
       if (editingTripId) {
-        await updateTrip(editingTripId, tripData);
-        setMessage("Trip updated successfully!");
+        await updateTrip(editingTripId, payload);
+        setMessage(t("trip_success_save"));
         setEditingTripId(null);
       } else {
-        await createTrip(tripData);
-        setMessage("Your itinerary has been transferred and saved to My Trips! 🎉");
-        sessionStorage.removeItem("explorex_pending_itinerary");
+        await createTrip(payload);
+        setMessage(t("trip_success_save"));
+        // Clear transferred itinerary once saved
+        if (transferredItinerary) {
+          dismissTransferredItinerary();
+        }
       }
 
       setFormData({ ...emptyForm });
-      setTransferredItinerary(null);
-      await fetchTrips();
+      fetchTrips();
     } catch (err) {
-      setError(err.message || "Unable to save your trip.");
+      setError(err.message || "Failed to save trip.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Delete a saved trip
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this trip plan?")) {
+  const handleDelete = async (tripId) => {
+    if (!window.confirm(t("trip_delete_confirm"))) {
       return;
     }
 
@@ -257,28 +255,20 @@ function Trip_Planner() {
       setError("");
       setMessage("");
 
-      await deleteTrip(id);
-
-      setTrips((previousTrips) =>
-        previousTrips.filter((trip) => trip._id !== id)
-      );
-
-      if (editingTripId === id) {
-        cancelEdit();
-      }
-
-      setMessage("Trip deleted successfully!");
+      await deleteTrip(tripId);
+      setMessage(t("trip_success_delete"));
+      fetchTrips();
     } catch (err) {
-      setError(err.message || "Unable to delete trip.");
+      setError(err.message || "Failed to delete trip.");
     }
   };
 
   return (
-    <main className="trip-planner">
-      <div className="trip-planner-header">
-        <span className="ai-header-badge">🧭 Personalized Itineraries</span>
-        <h1>AI Trip Planner</h1>
-        <p>Design, customize, and save your dream travel itineraries in one place.</p>
+    <main className="trip-planner-page">
+      <div className="trip-header">
+        <span className="ai-header-badge">📅 {t("trip_badge")}</span>
+        <h1>{t("trip_title")}</h1>
+        <p>{t("trip_subtitle")}</p>
       </div>
 
       {/* ================= TRANSFERRED ITINERARY BANNER ================= */}
@@ -286,12 +276,12 @@ function Trip_Planner() {
         <section className="transferred-itinerary-card">
           <div className="transferred-header-row">
             <div>
-              <span className="transferred-pill">✨ Transferred Itinerary</span>
+              <span className="transferred-pill">✨ {t("trip_transferred_title", { destination: formData.destination })}</span>
               <h2>
-                {formData.destination} — {formData.duration || transferredItinerary.length} Day Plan
+                {formData.destination} — {formData.duration || transferredItinerary.length} {t("common_days")}
               </h2>
               <p>
-                Estimated Budget: ₹{Number(formData.budget || 0).toLocaleString()} • Interests: {formData.interests || "Sightseeing & Heritage"}
+                {t("trip_budget_field")} ₹{Number(formData.budget || 0).toLocaleString()} • {t("trip_interests_field")} {formData.interests || t("trip_general_exploration")}
               </p>
             </div>
             <div className="transferred-actions-row">
@@ -302,11 +292,11 @@ function Trip_Planner() {
                   onClick={handleSubmit}
                   disabled={saving}
                 >
-                  {saving ? "Saving to Trips..." : "💾 1-Click Save to My Trips"}
+                  {saving ? t("trip_btn_saving") : `💾 ${t("trip_btn_create")}`}
                 </button>
               ) : (
                 <Link to="/login" className="transferred-save-btn">
-                  🔑 Login to Save Itinerary
+                  🔑 {t("trip_login_btn")}
                 </Link>
               )}
               {queryStops && (
@@ -314,7 +304,7 @@ function Trip_Planner() {
                   to={`/navigate?destination=${encodeURIComponent(formData.destination)}&stops=${encodeURIComponent(queryStops)}`}
                   className="transferred-nav-btn"
                 >
-                  🧭 Navigate Route
+                  🧭 {t("trip_btn_navigate")}
                 </Link>
               )}
               <button
@@ -331,7 +321,7 @@ function Trip_Planner() {
           <div className="transferred-days-list">
             {transferredItinerary.map((d) => (
               <div key={d.day} className="transferred-day-row">
-                <span className="transferred-day-badge">Day {d.day}</span>
+                <span className="transferred-day-badge">{t("dest_day", { day: d.day })}</span>
                 <div className="transferred-activities-wrap">
                   {Array.isArray(d.activities) ? (
                     d.activities.map((act, actIdx) => (
@@ -351,21 +341,21 @@ function Trip_Planner() {
 
       {!user ? (
         <section className="add-place-section" style={{ textAlign: "center", padding: "40px" }}>
-          <h2>Authentication Required</h2>
-          <p>Please login to your ExploreX account to create, edit, and view your trips.</p>
+          <h2>{t("trip_title")}</h2>
+          <p>{t("trip_login_required")}</p>
           <Link to="/login" className="ai-send-btn" style={{ display: "inline-block", marginTop: "14px" }}>
-            Login Now
+            {t("trip_login_btn")}
           </Link>
         </section>
       ) : (
         <>
           <section className="add-place-section">
-            <h2>{editingTripId ? "Edit Your Trip Plan" : "Create or Customize a Trip"}</h2>
+            <h2>{editingTripId ? t("trip_form_edit") : t("trip_form_create")}</h2>
 
             <form onSubmit={handleSubmit}>
               <input
                 name="destination"
-                placeholder="Enter destination (e.g. Manali, Kyoto, Bali) *"
+                placeholder={t("trip_dest_placeholder")}
                 value={formData.destination}
                 onChange={handleChange}
                 required
@@ -374,7 +364,7 @@ function Trip_Planner() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "4px" }}>
-                    Start Date
+                    {t("trip_start_date")}
                   </label>
                   <input
                     type="date"
@@ -387,7 +377,7 @@ function Trip_Planner() {
 
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "4px" }}>
-                    End Date
+                    {t("trip_end_date")}
                   </label>
                   <input
                     type="date"
@@ -403,13 +393,13 @@ function Trip_Planner() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "4px" }}>
-                    Duration (Days) *
+                    {t("trip_duration_days")} *
                   </label>
                   <input
                     type="number"
                     name="duration"
                     min="1"
-                    placeholder="Duration in days"
+                    placeholder={t("trip_duration_days")}
                     value={formData.duration}
                     onChange={handleChange}
                     required
@@ -418,13 +408,13 @@ function Trip_Planner() {
 
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "4px" }}>
-                    Budget (₹)
+                    {t("trip_budget_label")}
                   </label>
                   <input
                     type="number"
                     name="budget"
                     min="0"
-                    placeholder="Estimated Budget in INR"
+                    placeholder={t("trip_budget_placeholder")}
                     value={formData.budget}
                     onChange={handleChange}
                   />
@@ -433,17 +423,17 @@ function Trip_Planner() {
 
               <input
                 name="interests"
-                placeholder="Interests (comma separated: nature, heritage, food, trekking)"
+                placeholder={t("trip_interests_placeholder")}
                 value={formData.interests}
                 onChange={handleChange}
               />
 
               <button type="submit" disabled={saving}>
                 {saving
-                  ? "Saving Trip..."
+                  ? t("trip_btn_saving")
                   : editingTripId
-                  ? "Update Trip Plan"
-                  : "Save Trip Plan ✈️"}
+                  ? t("trip_btn_save_changes")
+                  : `${t("trip_btn_create")} ✈️`}
               </button>
 
               {editingTripId && (
@@ -452,7 +442,7 @@ function Trip_Planner() {
                   onClick={cancelEdit}
                   style={{ background: "#666", marginTop: "8px" }}
                 >
-                  Cancel Editing
+                  {t("trip_btn_cancel")}
                 </button>
               )}
             </form>
@@ -462,14 +452,14 @@ function Trip_Planner() {
           </section>
 
           <section className="places-section">
-            <h2>Your Saved Trips ({trips.length})</h2>
+            <h2>{t("trip_saved_heading", { count: trips.length })}</h2>
 
             {loading ? (
-              <p>Loading your trips...</p>
+              <p>{t("common_loading")}</p>
             ) : trips.length === 0 ? (
               <div className="ai-tool-card" style={{ textAlign: "center", padding: "40px" }}>
-                <h3>No Trips Saved Yet!</h3>
-                <p>Use the form above or transfer an itinerary from Destination Details to begin planning.</p>
+                <h3>{t("trip_empty_heading")}</h3>
+                <p>{t("trip_empty_desc")}</p>
               </div>
             ) : (
               <div className="places-grid">
@@ -491,26 +481,26 @@ function Trip_Planner() {
                             fontWeight: "bold",
                           }}
                         >
-                          {trip.status || "Planning"}
+                          {trip.status || t("trip_status_planning")}
                         </span>
                       </div>
 
                       <p>
-                        <strong>📅 Dates:</strong>{" "}
+                        <strong>📅 {t("trip_dates_label")}</strong>{" "}
                         {trip.startDate ? trip.startDate.slice(0, 10) : "TBD"} →{" "}
                         {trip.endDate ? trip.endDate.slice(0, 10) : "TBD"}
                       </p>
                       <p>
-                        <strong>⏳ Duration:</strong> {trip.duration} {trip.duration === 1 ? "day" : "days"}
+                        <strong>⏳ {t("trip_duration_label")}</strong> {trip.duration} {trip.duration === 1 ? t("common_day") : t("common_days")}
                       </p>
                       <p>
-                        <strong>💰 Budget:</strong> ₹{trip.budget?.toLocaleString() || "0"}
+                        <strong>💰 {t("trip_budget_field")}</strong> ₹{trip.budget?.toLocaleString() || "0"}
                       </p>
                       <p>
-                        <strong>🎯 Interests:</strong>{" "}
+                        <strong>🎯 {t("trip_interests_field")}</strong>{" "}
                         {trip.interests && trip.interests.length > 0
                           ? trip.interests.join(", ")
-                          : "General exploration"}
+                          : t("trip_general_exploration")}
                       </p>
 
                       {/* Structured Itinerary Display */}
@@ -521,7 +511,7 @@ function Trip_Planner() {
                             onClick={() => setExpandedTripId(isExpanded ? null : trip._id)}
                           >
                             <span>
-                              📋 {trip.itinerary.length}-Day Schedule ({isExpanded ? "Hide" : "View"})
+                              📋 {t("trip_schedule_toggle", { count: trip.itinerary.length, state: isExpanded ? t("common_hide") : t("common_view") })}
                             </span>
                             <span>{isExpanded ? "▲" : "▼"}</span>
                           </div>
@@ -530,7 +520,7 @@ function Trip_Planner() {
                             <div className="itinerary-accordion-content">
                               {trip.itinerary.map((dayItem) => (
                                 <div key={dayItem.day} className="saved-day-block">
-                                  <strong>Day {dayItem.day}</strong>
+                                  <strong>{t("dest_day", { day: dayItem.day })}</strong>
                                   <ul>
                                     {Array.isArray(dayItem.activities) ? (
                                       dayItem.activities.map((act, i) => <li key={i}>{act}</li>)
@@ -551,20 +541,20 @@ function Trip_Planner() {
                           className="trip-nav-action-btn"
                           title="Open route on map"
                         >
-                          🧭 Navigate
+                          🧭 {t("trip_btn_navigate")}
                         </Link>
                         <button
                           type="button"
                           style={{ background: "#24634d" }}
                           onClick={() => handleEdit(trip)}
                         >
-                          ✏️ Edit
+                          ✏️ {t("trip_btn_edit")}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(trip._id)}
                         >
-                          🗑️ Delete
+                          🗑️ {t("trip_btn_delete")}
                         </button>
                       </div>
                     </div>

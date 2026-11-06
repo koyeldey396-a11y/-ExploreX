@@ -1,12 +1,13 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 
 function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useLanguage();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -43,13 +44,13 @@ function Login() {
   return (
     <div className="auth-container">
       <form className="auth-form" onSubmit={handleSubmit}>
-        <h2>Welcome Back!</h2>
-        <p>Login to your ExploreX account.</p>
+        <h2>{t("auth_login_title")}</h2>
+        <p>{t("auth_login_subtitle")}</p>
 
         <input
           type="email"
           name="email"
-          placeholder="Email Address"
+          placeholder={t("auth_email_placeholder")}
           value={formData.email}
           onChange={handleChange}
           required
@@ -58,20 +59,21 @@ function Login() {
         <input
           type="password"
           name="password"
-          placeholder="Password"
+          placeholder={t("auth_password_placeholder")}
           value={formData.password}
           onChange={handleChange}
           required
         />
 
         <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
+          {loading ? t("auth_logging_in") : t("auth_btn_login")}
         </button>
 
         {error && <p className="error-message">{error}</p>}
 
         <p>
-          Don't have an account? <Link to="/register">Register</Link>
+          {t("auth_no_account")}{" "}
+          <Link to="/register">{t("auth_signup_here")}</Link>
         </p>
       </form>
     </div>

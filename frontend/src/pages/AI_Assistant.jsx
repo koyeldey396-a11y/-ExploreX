@@ -327,7 +327,7 @@ function AIAssistant() {
           <div className="ai-header-badge">
             ✨ ExploreX Intelligent Guide • {aiStatus.provider || "Google Gemini"}
           </div>
-          <h1>AI Tourist Assistant</h1>
+          <h1>{t("ai_title")}</h1>
           <p>
             Your intelligent travel companion for destination discovery, personalized
             itineraries, budget breakdowns, and local cultural insights.
@@ -378,30 +378,30 @@ function AIAssistant() {
             className={`ai-tab-btn ${activeTab === "chat" ? "active" : ""}`}
             onClick={() => setActiveTab("chat")}
           >
-            💬 Interactive Chat
+            💬 {t("ai_chat_title")}
           </button>
           <button
             type="button"
             className={`ai-tab-btn ${activeTab === "recommend" ? "active" : ""}`}
             onClick={() => setActiveTab("recommend")}
           >
-            🗺️ Destination Recommendations
+            🗺️ {t("ai_recs_title")}
           </button>
           <button
             type="button"
             className={`ai-tab-btn ${activeTab === "itinerary" ? "active" : ""}`}
             onClick={() => setActiveTab("itinerary")}
           >
-            📅 Itinerary Generator
+            📅 {t("ai_itinerary_title")}
           </button>
         </div>
 
         {/* Destination Recommendations Panel */}
         {activeTab === "recommend" && (
           <section className="ai-tool-card">
-            <h2>🗺️ Destination Recommendations</h2>
+            <h2>🗺️ {t("ai_recs_title")}</h2>
             <p>
-              Select a travel theme to receive expert recommendations tailored to your vibe:
+              {t("ai_recs_subtitle")}
             </p>
             <div className="ai-category-chips">
               {RECOMMENDATION_CATEGORIES.map((cat) => (
@@ -422,7 +422,7 @@ function AIAssistant() {
         {/* Travel Itinerary Generator Form Panel */}
         {activeTab === "itinerary" && (
           <section className="ai-tool-card">
-            <h2>📅 Custom Travel Itinerary Generator</h2>
+            <h2>📅 {t("ai_itinerary_title")}</h2>
             <p>
               Provide your trip details below to have your AI assistant generate a structured, day-by-day journey plan:
             </p>
@@ -430,7 +430,7 @@ function AIAssistant() {
             <form onSubmit={handleItinerarySubmit}>
               <div className="ai-form-grid">
                 <div className="ai-form-group">
-                  <label>Destination *</label>
+                  <label>{t("ai_itinerary_dest")}</label>
                   <input
                     type="text"
                     placeholder="e.g. Goa, Manali, Kerala, Rajasthan"
@@ -443,7 +443,7 @@ function AIAssistant() {
                 </div>
 
                 <div className="ai-form-group">
-                  <label>Trip Duration</label>
+                  <label>{t("ai_itinerary_days")}</label>
                   <select
                     value={itineraryForm.duration}
                     onChange={(e) =>
@@ -459,7 +459,7 @@ function AIAssistant() {
                 </div>
 
                 <div className="ai-form-group">
-                  <label>Travel Style & Budget</label>
+                  <label>{t("ai_itinerary_budget")}</label>
                   <select
                     value={itineraryForm.style}
                     onChange={(e) =>
@@ -473,10 +473,10 @@ function AIAssistant() {
                 </div>
 
                 <div className="ai-form-group">
-                  <label>Key Interests (Optional)</label>
+                  <label>{t("ai_itinerary_interests")}</label>
                   <input
                     type="text"
-                    placeholder="e.g. Photography, beaches, heritage, food"
+                    placeholder={t("ai_itinerary_interests_placeholder")}
                     value={itineraryForm.interests}
                     onChange={(e) =>
                       setItineraryForm({ ...itineraryForm, interests: e.target.value })
@@ -490,7 +490,7 @@ function AIAssistant() {
                 className="ai-send-btn"
                 disabled={loading || !itineraryForm.destination.trim()}
               >
-                {loading ? "Generating Plan..." : "🚀 Generate Day-by-Day Itinerary"}
+                {loading ? t("ai_btn_generating") : `🚀 ${t("ai_btn_generate")}`}
               </button>
             </form>
           </section>
@@ -499,7 +499,7 @@ function AIAssistant() {
         {/* Quick Prompts Bar */}
         <section className="ai-quick-prompts-section">
           <div className="ai-quick-prompts-title">
-            💡 Quick Prompts (Click to Ask):
+            💡 {t("ai_recs_title")}:
           </div>
           <div className="ai-quick-prompts-list">
             {QUICK_PROMPTS.map((prompt) => (
@@ -519,14 +519,14 @@ function AIAssistant() {
         {/* Chat Window */}
         <section className="ai-chat-card">
           <div className="ai-chat-header">
-            <h3>🤖 ExploreX Assistant Chat</h3>
+            <h3>🤖 {t("ai_chat_title")}</h3>
             <button
               type="button"
               className="ai-clear-btn"
               onClick={handleClearChat}
               title="Clear conversation history"
             >
-              Clear Chat
+              {t("ai_btn_clear")}
             </button>
           </div>
 
@@ -534,8 +534,8 @@ function AIAssistant() {
             {messages.length === 0 ? (
               <div className="ai-empty-state">
                 <div className="ai-empty-state-icon">🧭</div>
-                <h3>Start a New Journey</h3>
-                <p>Choose a quick prompt above or type your question below!</p>
+                <h3>{t("ai_title")}</h3>
+                <p>{t("ai_subtitle")}</p>
               </div>
             ) : (
               messages.map((msg) => (
@@ -577,8 +577,8 @@ function AIAssistant() {
                           {activeSpeechMsgId === msg.id && isSpeaking
                             ? isPaused
                               ? "▶️ Resume"
-                              : "⏸️ Pause"
-                            : "🔊 Listen"}
+                              : `⏸️ ${t("pause")}`
+                            : `🔊 ${t("ai_btn_tts")}`}
                         </button>
                         {activeSpeechMsgId === msg.id && isSpeaking && (
                           <button
@@ -589,7 +589,7 @@ function AIAssistant() {
                               setActiveSpeechMsgId(null);
                             }}
                           >
-                            ⏹️ Stop
+                            ⏹️ {t("ai_btn_tts_stop")}
                           </button>
                         )}
                       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import Gem3DViewer from "../components/3d/Gem3DViewer";
 import {
   TajMahalModel,
@@ -562,12 +563,9 @@ export default function Explore_3D() {
     <main className="explore-3d-page">
       {/* ================= PAGE HEADER ================= */}
       <div className="explore-3d-header">
-        <span className="ai-header-badge">🏛️ Interactive WebGL & Photogrammetry</span>
-        <h1>ExploreX 3D World Tour & Reconstruction</h1>
-        <p>
-          Immerse yourself in authentic 3D interactive models of renowned heritage monuments,
-          or contribute photographs of secluded hidden places to be reconstructed into 3D.
-        </p>
+        <span className="ai-header-badge">🏛️ {t("three_d_badge")}</span>
+        <h1>{t("three_d_title")}</h1>
+        <p>{t("three_d_subtitle")}</p>
 
         {/* Navigation Tabs */}
         <div className="explore-3d-tabs">
@@ -576,21 +574,21 @@ export default function Explore_3D() {
             className={`tab-btn ${activeTab === "famous" ? "active" : ""}`}
             onClick={() => setActiveTab("famous")}
           >
-            🏛️ Famous 3D Monuments
+            🏛️ {t("three_d_tab_monuments", { count: FAMOUS_MONUMENTS.length })}
           </button>
           <button
             type="button"
             className={`tab-btn ${activeTab === "community" ? "active" : ""}`}
             onClick={() => setActiveTab("community")}
           >
-            💎 Community 3D Hidden Gems ({communityGems.length})
+            💎 {t("three_d_tab_gems", { count: communityGems.length })}
           </button>
           <button
             type="button"
             className={`tab-btn ${activeTab === "upload" ? "active" : ""}`}
             onClick={() => setActiveTab("upload")}
           >
-            📸 Submit Photo-to-3D Gem
+            📸 {t("three_d_tab_reconstruct")}
           </button>
           {user?.role === "admin" && (
             <button
@@ -598,7 +596,7 @@ export default function Explore_3D() {
               className={`tab-btn admin ${activeTab === "admin" ? "active" : ""}`}
               onClick={() => setActiveTab("admin")}
             >
-              🛡️ Admin 3D Review
+              🛡️ {t("three_d_tab_admin")}
             </button>
           )}
         </div>
@@ -703,13 +701,13 @@ export default function Explore_3D() {
               </div>
 
               <div className="monument-desc-box">
-                <h4>Historical Background</h4>
+                <h4>{t("three_d_historical_bg")}</h4>
                 <p>{selectedMonument.description}</p>
               </div>
 
               {/* Hotspot quick selectors */}
               <div className="hotspot-selector-box">
-                <h4>Interactive Hotspots ({selectedMonument.hotspots.length})</h4>
+                <h4>{t("three_d_hotspots_heading", { count: selectedMonument.hotspots.length })}</h4>
                 <div className="hotspot-tags">
                   {selectedMonument.hotspots.map((h) => (
                     <button

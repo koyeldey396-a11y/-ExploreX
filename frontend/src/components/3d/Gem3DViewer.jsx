@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Center } from "@react-three/drei";
+import { useLanguage } from "../../context/LanguageContext";
 
 // Sub-component to load a GLB/GLTF model dynamically with error boundary
 function DynamicGLBModel({ url, wireframe }) {
@@ -63,6 +64,7 @@ export default function Gem3DViewer({
   activeHotspot = null,
   onHotspotClick = () => {},
 }) {
+  const { t } = useLanguage();
   const controlsRef = useRef();
   const containerRef = useRef();
 
@@ -101,11 +103,8 @@ export default function Gem3DViewer({
   if (!hasWebGL) {
     return (
       <div className="webgl-fallback-card">
-        <h3>⚠️ WebGL Acceleration Unavailable</h3>
-        <p>
-          Your browser or device does not currently have WebGL hardware acceleration enabled.
-          Please ensure WebGL is enabled in your browser settings to explore full 3D interactive models.
-        </p>
+        <h3>⚠️ {t("three_d_webgl_error_title")}</h3>
+        <p>{t("three_d_webgl_error_desc")}</p>
       </div>
     );
   }
@@ -143,7 +142,7 @@ export default function Gem3DViewer({
       {/* 3D Toolbar Controls */}
       <div className="viewer-toolbar-overlay">
         <div className="toolbar-left">
-          <span className="viewer-title-badge">🕹️ 3D View: {title}</span>
+          <span className="viewer-title-badge">🕹️ 3D: {title}</span>
         </div>
 
         <div className="toolbar-right">
@@ -155,7 +154,7 @@ export default function Gem3DViewer({
               onClick={() => setLightingMode("day")}
               title="Daylight Mode"
             >
-              ☀️ Day
+              ☀️ {t("three_d_lighting_day")}
             </button>
             <button
               type="button"
@@ -163,7 +162,7 @@ export default function Gem3DViewer({
               onClick={() => setLightingMode("sunset")}
               title="Sunset Mode"
             >
-              🌅 Sunset
+              🌅 {t("three_d_lighting_sunset")}
             </button>
             <button
               type="button"
@@ -171,7 +170,7 @@ export default function Gem3DViewer({
               onClick={() => setLightingMode("night")}
               title="Night Illumination"
             >
-              🌙 Night
+              🌙 {t("three_d_lighting_night")}
             </button>
           </div>
 
@@ -182,7 +181,7 @@ export default function Gem3DViewer({
             onClick={() => setAutoRotate(!autoRotate)}
             title="Toggle 360° Auto-Rotation"
           >
-            🔄 {autoRotate ? "Stop Rotate" : "Auto Rotate"}
+            🔄 {autoRotate ? t("three_d_stop_rotate") : t("three_d_auto_rotate")}
           </button>
 
           {/* Wireframe Mode Toggle */}
@@ -192,7 +191,7 @@ export default function Gem3DViewer({
             onClick={() => setWireframe(!wireframe)}
             title="Toggle 3D Wireframe Mesh"
           >
-            📐 Wireframe
+            📐 {t("three_d_wireframe")}
           </button>
 
           {/* Reset View Button */}
@@ -202,7 +201,7 @@ export default function Gem3DViewer({
             onClick={handleResetCamera}
             title="Reset Camera Viewpoint"
           >
-            🎯 Reset View
+            🎯 {t("three_d_reset_view")}
           </button>
 
           {/* Fullscreen Toggle */}
@@ -212,7 +211,7 @@ export default function Gem3DViewer({
             onClick={handleToggleFullscreen}
             title="Toggle Fullscreen"
           >
-            ⛶ {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            ⛶ {isFullscreen ? t("three_d_exit_fullscreen") : t("three_d_fullscreen")}
           </button>
         </div>
       </div>
@@ -271,11 +270,11 @@ export default function Gem3DViewer({
 
       {/* Floating Instructions Helper */}
       <div className="viewer-instructions-helper">
-        <span>🖱️ Drag to Rotate</span>
+        <span>🖱️ {t("three_d_drag_rotate")}</span>
         <span>•</span>
-        <span>🔍 Scroll to Zoom</span>
+        <span>🔍 {t("three_d_scroll_zoom")}</span>
         <span>•</span>
-        <span>🖐️ Right-Click to Pan</span>
+        <span>🖐️ {t("three_d_right_click_pan")}</span>
       </div>
     </div>
   );

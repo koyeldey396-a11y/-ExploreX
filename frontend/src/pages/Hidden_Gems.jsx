@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getHiddenGems, getMyHiddenGems, submitHiddenGem } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 
 const CATEGORIES = [
   "Nature",
@@ -25,6 +26,7 @@ const emptyForm = {
 
 function HiddenGems() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const [approvedGems, setApprovedGems] = useState([]);
   const [myGems, setMyGems] = useState([]);
@@ -82,7 +84,7 @@ function HiddenGems() {
     setError("");
 
     if (!user) {
-      setError("Please login to submit a hidden destination.");
+      setError(t("gems_login_required"));
       return;
     }
 
@@ -92,13 +94,13 @@ function HiddenGems() {
       !formData.location.trim() ||
       !formData.country.trim()
     ) {
-      setError("Please fill out all required fields.");
+      setError(t("gems_fields_required"));
       return;
     }
 
     // Validate image URL format if provided
     if (formData.image.trim() && !/^https?:\/\/.+/i.test(formData.image.trim())) {
-      setError("Image URL must start with http:// or https://");
+      setError(t("gems_url_error"));
       return;
     }
 
@@ -114,10 +116,7 @@ function HiddenGems() {
         image: formData.image.trim(),
       });
 
-      setMessage(
-        res.message ||
-          "Hidden gem submitted successfully! It will appear publicly once approved."
-      );
+      setMessage(res.message || t("gems_submit_success"));
       setFormData({ ...emptyForm });
       await fetchMyGems();
       setActiveTab("my-submissions");
@@ -128,15 +127,25 @@ function HiddenGems() {
     }
   };
 
+  const getCategoryLabel = (cat) => {
+    switch (cat) {
+      case "Nature": return t("gems_cat_nature");
+      case "Historical": return t("gems_cat_historical");
+      case "Adventure": return t("gems_cat_adventure");
+      case "Religious": return t("gems_cat_religious");
+      case "Beach": return t("gems_cat_beach");
+      case "Cultural": return t("gems_cat_cultural");
+      case "Other": return t("gems_cat_other");
+      default: return cat;
+    }
+  };
+
   return (
     <main className="hidden-gems-page">
       <div className="hidden-gems-header">
-        <span className="ai-header-badge">💎 Community Discoveries</span>
-        <h1>Hidden Gems</h1>
-        <p>
-          Venture off the beaten track. Explore secret spots and undiscovered wonders
-          shared by real travelers and explorers.
-        </p>
+        <span className="ai-header-badge">💎 {t("gems_badge")}</span>
+        <h1>{t("gems_title")}</h1>
+        <p>{t("gems_subtitle")}</p>
       </div>
 
       {message && <p className="success-message">{message}</p>}
@@ -153,7 +162,7 @@ function HiddenGems() {
             setError("");
           }}
         >
-          🗺️ Explore Hidden Gems ({approvedGems.length})
+          🧭 {t("gems_tab_explore", { count: approvedGems.length })}
         </button>
         <button
           type="button"
@@ -164,7 +173,7 @@ function HiddenGems() {
             setError("");
           }}
         >
-          ➕ Submit a Hidden Gem
+          ✍️ {t("gems_tab_submit")}
         </button>
         {user && (
           <button
@@ -176,7 +185,7 @@ function HiddenGems() {
               setError("");
             }}
           >
-            📋 My Submissions ({myGems.length})
+            📋 {t("gems_tab_my", { count: myGems.length })}
           </button>
         )}
       </div>
@@ -184,19 +193,19 @@ function HiddenGems() {
       {/* ================= TAB 1: EXPLORE APPROVED GEMS ================= */}
       {activeTab === "explore" && (
         <section className="places-section">
-          <h2>Verified Hidden Destinations</h2>
+          <h2>{t("gems_title")}</h2>
           {loading ? (
-            <p>Loading hidden gems...</p>
+            <p>{t("common_loading")}</p>
           ) : approvedGems.length === 0 ? (
             <div className="ai-tool-card" style={{ textAlign: "center", padding: "40px 20px" }}>
-              <h3>No Hidden Gems Published Yet!</h3>
-              <p>Be the first traveler to share an undiscovered secret destination.</p>
+              <h3>{t("gems_my_empty")}</h3>
+              <p>{t("gems_subtitle")}</p>
               <button
                 type="button"
                 className="ai-send-btn"
                 onClick={() => setActiveTab("submit")}
               >
-                Submit the First Hidden Gem
+                {t("gems_submit_first")}
               </button>
             </div>
           ) : (
@@ -234,7 +243,7 @@ function HiddenGems() {
                     <strong>📍 Location:</strong>{" "}
                     {[gem.location, gem.state, gem.country].filter(Boolean).join(", ")}
                   </p>
-                  <span className="category-tag">{gem.category || "Nature"}</span>
+                  <span className="category-tag">{getCategoryLabel(gem.category || "Nature")}</span>
 
                   {gem.submittedBy?.name && (
                     <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
@@ -251,25 +260,23 @@ function HiddenGems() {
       {/* ================= TAB 2: SUBMIT A HIDDEN GEM ================= */}
       {activeTab === "submit" && (
         <section className="add-place-section">
-          <h2>Share an Undiscovered Treasure</h2>
+          <h2>{t("gems_form_title")}</h2>
           <p style={{ textAlign: "center", marginBottom: "20px", color: "#555" }}>
-            Know a secluded waterfall, ancient ruin, or hidden valley? Share it with the
-            ExploreX travel community! Submissions are reviewed for authenticity before
-            publication.
+            {t("gems_form_desc")}
           </p>
 
           {!user ? (
             <div style={{ textAlign: "center", padding: "20px" }}>
-              <p>You need to be logged in to contribute hidden gems.</p>
+              <p>{t("gems_login_required")}</p>
               <Link to="/login" className="ai-send-btn" style={{ display: "inline-block", marginTop: "10px" }}>
-                Login to Submit
+                {t("nav_login")}
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
               <input
                 name="name"
-                placeholder="Destination Name *"
+                placeholder={t("gems_name_placeholder")}
                 value={formData.name}
                 onChange={handleChange}
                 required
@@ -277,7 +284,7 @@ function HiddenGems() {
 
               <textarea
                 name="description"
-                placeholder="Describe this place. What makes it unique, peaceful, or exciting? *"
+                placeholder={t("gems_desc_placeholder")}
                 value={formData.description}
                 onChange={handleChange}
                 required
@@ -286,14 +293,14 @@ function HiddenGems() {
               <select name="category" value={formData.category} onChange={handleChange}>
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
-                    {cat}
+                    {getCategoryLabel(cat)}
                   </option>
                 ))}
               </select>
 
               <input
                 name="location"
-                placeholder="Specific Area / Valley / Trail *"
+                placeholder={t("gems_location_placeholder")}
                 value={formData.location}
                 onChange={handleChange}
                 required
@@ -301,7 +308,7 @@ function HiddenGems() {
 
               <input
                 name="country"
-                placeholder="Country (e.g. India, Japan, Italy) *"
+                placeholder={t("gems_country_placeholder")}
                 value={formData.country}
                 onChange={handleChange}
                 required
@@ -309,7 +316,7 @@ function HiddenGems() {
 
               <input
                 name="state"
-                placeholder="State / Region (e.g. Himachal Pradesh, Kyoto)"
+                placeholder={t("gems_state_placeholder")}
                 value={formData.state}
                 onChange={handleChange}
               />
@@ -317,13 +324,13 @@ function HiddenGems() {
               <input
                 name="image"
                 type="url"
-                placeholder="Image URL (e.g. https://images.unsplash.com/...)"
+                placeholder={t("gems_image_placeholder")}
                 value={formData.image}
                 onChange={handleChange}
               />
 
               <button type="submit" disabled={submitting}>
-                {submitting ? "Submitting for Review..." : "Submit Hidden Gem"}
+                {submitting ? t("gems_btn_submitting") : t("gems_btn_submit")}
               </button>
             </form>
           )}
@@ -333,18 +340,18 @@ function HiddenGems() {
       {/* ================= TAB 3: USER'S SUBMISSIONS ================= */}
       {activeTab === "my-submissions" && user && (
         <section className="places-section">
-          <h2>My Submitted Gems</h2>
-          <p>Track the approval status of your community contributions.</p>
+          <h2>{t("gems_my_title")}</h2>
+          <p>{t("gems_my_subtitle")}</p>
 
           {myGems.length === 0 ? (
             <div className="ai-tool-card" style={{ textAlign: "center", padding: "30px" }}>
-              <p>You haven't submitted any hidden gems yet.</p>
+              <p>{t("gems_my_empty")}</p>
               <button
                 type="button"
                 className="ai-send-btn"
                 onClick={() => setActiveTab("submit")}
               >
-                Submit Your First Spot
+                {t("gems_submit_first")}
               </button>
             </div>
           ) : (
@@ -366,11 +373,11 @@ function HiddenGems() {
                     📍 {[gem.location, gem.state, gem.country].filter(Boolean).join(", ")}
                   </p>
                   <p>
-                    Category: <strong>{gem.category || "Nature"}</strong>
+                    Category: <strong>{getCategoryLabel(gem.category || "Nature")}</strong>
                   </p>
 
                   <div style={{ marginTop: "14px" }}>
-                    Status:{" "}
+                    {t("common_status")}:{" "}
                     {gem.status === "Approved" ? (
                       <span
                         style={{
@@ -382,7 +389,7 @@ function HiddenGems() {
                           fontSize: "12px",
                         }}
                       >
-                        🟢 Approved (Public)
+                        🟢 {t("gems_status_approved")}
                       </span>
                     ) : gem.status === "Rejected" ? (
                       <span
@@ -395,7 +402,7 @@ function HiddenGems() {
                           fontSize: "12px",
                         }}
                       >
-                        🔴 Declined
+                        🔴 {t("gems_status_rejected")}
                       </span>
                     ) : (
                       <span
@@ -408,7 +415,7 @@ function HiddenGems() {
                           fontSize: "12px",
                         }}
                       >
-                        🟡 Pending Review
+                        🟡 {t("gems_status_pending")}
                       </span>
                     )}
                   </div>

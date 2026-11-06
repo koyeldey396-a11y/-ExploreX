@@ -1,12 +1,13 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 
 function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useLanguage();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -44,13 +45,13 @@ function Register() {
   return (
     <div className="auth-container">
       <form className="auth-form" onSubmit={handleSubmit}>
-        <h2>Create Your ExploreX Account</h2>
-        <p>Join ExploreX and start exploring!</p>
+        <h2>{t("auth_register_title")}</h2>
+        <p>{t("auth_register_subtitle")}</p>
 
         <input
           type="text"
           name="name"
-          placeholder="Full Name"
+          placeholder={t("auth_name_placeholder")}
           value={formData.name}
           onChange={handleChange}
           required
@@ -59,7 +60,7 @@ function Register() {
         <input
           type="email"
           name="email"
-          placeholder="Email Address"
+          placeholder={t("auth_email_placeholder")}
           value={formData.email}
           onChange={handleChange}
           required
@@ -68,7 +69,7 @@ function Register() {
         <input
           type="password"
           name="password"
-          placeholder="Password (minimum 6 characters)"
+          placeholder={t("auth_password_placeholder")}
           value={formData.password}
           onChange={handleChange}
           minLength={6}
@@ -76,13 +77,14 @@ function Register() {
         />
 
         <button type="submit" disabled={loading}>
-          {loading ? "Creating Account..." : "Register"}
+          {loading ? t("auth_registering") : t("auth_btn_register")}
         </button>
 
         {error && <p className="error-message">{error}</p>}
 
         <p>
-          Already have an account? <Link to="/login">Login</Link>
+          {t("auth_already_account")}{" "}
+          <Link to="/login">{t("auth_login_here")}</Link>
         </p>
       </form>
     </div>

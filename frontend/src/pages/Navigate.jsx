@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { getPlaces } from "../services/api";
+import { useLanguage } from "../context/LanguageContext";
 
 // Fix Leaflet's default marker asset URLs in Vite bundler
 delete L.Icon.Default.prototype._getIconUrl;
@@ -103,6 +104,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 function Navigate() {
+  const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
   const requestedPlaceId = searchParams.get("destination");
   const queryLat = parseFloat(searchParams.get("lat"));
@@ -352,7 +354,7 @@ function Navigate() {
               border-radius: 4px;
               font-size: 11px;
               cursor: pointer;
-            ">+ Add as Route Stop</button>
+            ">+ ${t("nav_page_add_as_stop")}</button>
             <button id="select-dest-${place._id}" style="
               width: 100%;
               background: #b47a45;
@@ -362,7 +364,7 @@ function Navigate() {
               border-radius: 4px;
               font-size: 11px;
               cursor: pointer;
-            ">Set as Destination 🏁</button>
+            ">${t("nav_page_set_as_dest")}</button>
           </div>
         </div>
       `;
@@ -422,7 +424,7 @@ function Navigate() {
               border-radius: 4px;
               font-size: 11px;
               cursor: pointer;
-            ">Remove This Stop</button>
+            ">${t("nav_page_remove_stop")}</button>
           </div>
         `);
 
@@ -901,11 +903,9 @@ function Navigate() {
   return (
     <main className="navigate-page">
       <div className="navigate-header">
-        <span className="ai-header-badge">🧭 Real-Time Navigation</span>
-        <h1>Interactive Route Navigator</h1>
-        <p>
-          Calculate practical shortest routes, optimize multi-stop attraction visits, and preview turn-by-turn driving distances across ExploreX destinations.
-        </p>
+        <span className="ai-header-badge">🧭 {t("nav_page_badge")}</span>
+        <h1>{t("nav_page_title")}</h1>
+        <p>{t("nav_page_subtitle")}</p>
       </div>
 
       <div className="navigate-layout">
@@ -914,7 +914,7 @@ function Navigate() {
           {/* 1. Multi-Stop Route Stops / Waypoints */}
           <div className="navigate-card waypoint-manager-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <h3 style={{ margin: 0 }}>📍 Route Waypoints ({waypoints.length})</h3>
+              <h3 style={{ margin: 0 }}>📍 {t("nav_page_waypoints_title", { count: waypoints.length })}</h3>
               {waypoints.length > 0 && (
                 <button
                   type="button"
@@ -922,13 +922,13 @@ function Navigate() {
                   onClick={clearAllWaypoints}
                   title="Clear all waypoints"
                 >
-                  Clear All
+                  {t("nav_page_clear_all")}
                 </button>
               )}
             </div>
 
             <p className="navigate-instruction">
-              Set your pickup, reorder intermediate stops, or click on the map to add custom pins.
+              {t("nav_page_instruction")}
             </p>
 
             {/* Current GPS location button */}
@@ -938,7 +938,7 @@ function Navigate() {
               onClick={handleUseCurrentLocation}
               disabled={locating}
             >
-              {locating ? "Acquiring GPS Signal..." : "📍 Use My Current Location as Start"}
+              {locating ? t("nav_page_acquiring_gps") : ("📍 " + t("nav_page_use_gps"))}
             </button>
 
             {geoError && <p className="error-message" style={{ marginTop: "8px" }}>{geoError}</p>}
@@ -1000,14 +1000,14 @@ function Navigate() {
               </div>
             ) : (
               <div className="empty-waypoints-hint">
-                <span>No waypoints selected. Pick a destination below or click anywhere on the map to place pins.</span>
+                <span>{t("nav_page_empty_waypoints")}</span>
               </div>
             )}
 
             {/* Quick city selector to set start or stop */}
             <div style={{ marginTop: "12px" }}>
               <label style={{ fontSize: "12px", color: "#666", fontWeight: "bold" }}>
-                Or add city hub as waypoint:
+                {t("nav_page_city_hub_label")}
               </label>
               <select
                 className="navigate-select"
@@ -1030,7 +1030,7 @@ function Navigate() {
                 defaultValue=""
               >
                 <option value="" disabled>
-                  -- Select a city to add --
+                  {t("nav_page_select_city")}
                 </option>
                 <option value="delhi">Delhi</option>
                 <option value="agra">Agra</option>
@@ -1049,13 +1049,13 @@ function Navigate() {
 
           {/* 2. Destination Catalog Selection */}
           <div className="navigate-card">
-            <h3>2. ExploreX Destination Catalog</h3>
+            <h3>{t("nav_page_catalog_title")}</h3>
             <p className="navigate-instruction">
-              Select any tourist destination to append it to your route itinerary.
+              {t("nav_page_catalog_instruction")}
             </p>
 
             {loadingPlaces ? (
-              <p>Loading destinations...</p>
+              <p>{t("nav_page_loading_dest")}</p>
             ) : (
               <select
                 className="navigate-select"
@@ -1069,7 +1069,7 @@ function Navigate() {
                 }}
               >
                 <option value="" disabled>
-                  -- Add an ExploreX Landmark --
+                  {t("nav_page_add_landmark")}
                 </option>
                 {places.map((place) => (
                   <option key={place._id} value={place._id}>
@@ -1082,7 +1082,7 @@ function Navigate() {
 
           {/* 3. Routing Mode & Calculation */}
           <div className="navigate-card">
-            <h3>3. Routing Algorithm Strategy</h3>
+            <h3>{t("nav_page_strategy_title")}</h3>
 
             <div className="routing-strategy-toggle">
               <label className={`strategy-radio-label ${routeStrategy === "shortest" ? "active" : ""}`}>
@@ -1094,8 +1094,8 @@ function Navigate() {
                   onChange={() => setRouteStrategy("shortest")}
                 />
                 <div>
-                  <strong>Shortest Distance (TSP)</strong>
-                  <span>Minimizes total road kilometers</span>
+                  <strong>{t("nav_page_strat_shortest")}</strong>
+                  <span>{t("nav_page_strat_shortest_desc")}</span>
                 </div>
               </label>
 
@@ -1108,8 +1108,8 @@ function Navigate() {
                   onChange={() => setRouteStrategy("fastest")}
                 />
                 <div>
-                  <strong>Fastest Travel Time</strong>
-                  <span>Prioritizes quickest highways</span>
+                  <strong>{t("nav_page_strat_fastest")}</strong>
+                  <span>{t("nav_page_strat_fastest_desc")}</span>
                 </div>
               </label>
 
@@ -1122,8 +1122,8 @@ function Navigate() {
                   onChange={() => setRouteStrategy("fixed")}
                 />
                 <div>
-                  <strong>Sequential Order</strong>
-                  <span>Follows exact user list order</span>
+                  <strong>{t("nav_page_strat_fixed")}</strong>
+                  <span>{t("nav_page_strat_fixed_desc")}</span>
                 </div>
               </label>
             </div>
@@ -1135,10 +1135,10 @@ function Navigate() {
               disabled={routing || (waypoints.length < 2 && (!startPoint || !destinationPoint))}
             >
               {routing
-                ? "Calculating Practical Route..."
+                ? t("nav_page_calc_routing")
                 : routeStrategy === "shortest" && waypoints.length >= 3
-                ? `🧭 Calculate Shortest Route (${waypoints.length} Stops)`
-                : "🧭 Calculate Route"}
+                ? `🧭 ${t("nav_page_calc_shortest", { count: waypoints.length })}`
+                : `🧭 ${t("nav_page_calc_route")}`}
             </button>
 
             {routeError && (
@@ -1166,11 +1166,11 @@ function Navigate() {
 
                 <div className="route-metric-grid">
                   <div className="route-metric">
-                    <span className="metric-label">Total Distance</span>
+                    <span className="metric-label">{t("nav_page_metric_distance")}</span>
                     <strong className="metric-value">{routeInfo.distanceKm} km</strong>
                   </div>
                   <div className="route-metric">
-                    <span className="metric-label">Estimated Drive Time</span>
+                    <span className="metric-label">{t("nav_page_metric_duration")}</span>
                     <strong className="metric-value">{routeInfo.durationFormatted}</strong>
                   </div>
                 </div>
@@ -1178,7 +1178,7 @@ function Navigate() {
                 {/* If multi-stop TSP was solved, show optimized visiting sequence */}
                 {routeInfo.isMultiStopTSP && routeInfo.sequence && (
                   <div className="route-sequence-display">
-                    <strong>✅ Optimized Visiting Sequence (Minimum Distance):</strong>
+                    <strong>✅ {t("nav_page_sequence_title")}</strong>
                     <ol className="sequence-step-list">
                       {routeInfo.sequence.map((step) => (
                         <li key={step.order}>
@@ -1192,7 +1192,7 @@ function Navigate() {
                 {/* Distinct Comparison between Shortest Distance and Fastest Time */}
                 {routeInfo.hasAlternative && (
                   <div className="route-comparison-note">
-                    ℹ️ <strong>Route Tradeoff:</strong>
+                    ℹ️ <strong>{t("nav_page_tradeoff_title")}</strong>
                     {routeInfo.strategy === "shortest" ? (
                       <span>
                         {" "}Fastest alternative is {routeInfo.fastest.distanceKm} km ({routeInfo.fastest.durationFormatted}). Shortest distance was chosen to save {(routeInfo.fastest.distanceKm - routeInfo.shortest.distanceKm).toFixed(2)} km.
@@ -1213,7 +1213,7 @@ function Navigate() {
                     rel="noopener noreferrer"
                     className="ext-nav-btn gmaps-btn"
                   >
-                    🗺️ Open in Google Maps
+                    🗺️ {t("nav_page_open_gmaps")}
                   </a>
 
                   <button
@@ -1221,7 +1221,7 @@ function Navigate() {
                     className="ext-nav-btn ride-toggle-btn"
                     onClick={() => setShowRidePanel(!showRidePanel)}
                   >
-                    🚕 Book a Ride
+                    🚕 {t("nav_page_book_ride")}
                   </button>
                 </div>
               </div>
@@ -1232,12 +1232,12 @@ function Navigate() {
           {showRidePanel && (
             <div className="navigate-card ride-booking-panel">
               <div className="ride-panel-header">
-                <h3>🚕 External Ride Booking</h3>
+                <h3>🚕 {t("nav_page_ride_panel_title")}</h3>
                 <span className="provider-badge">Uber & Ola</span>
               </div>
 
               <div className="ride-disclaimer-box">
-                🛡️ <strong>Notice:</strong> ExploreX connects you directly with official ride providers. Ride booking, fares, driver dispatch, and payments occur securely on Uber or Ola's official application or website.
+                🛡️ {t("nav_page_ride_disclaimer")}
               </div>
 
               <div className="ride-options-list">
@@ -1246,9 +1246,9 @@ function Navigate() {
                   <div className="ride-card-left">
                     <div className="ride-logo-icon uber">Uber</div>
                     <div>
-                      <strong>Uber Rides</strong>
+                      <strong>{t("nav_page_uber_rides")}</strong>
                       <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>
-                        Auto, Go, Premier, XL
+                        {t("nav_page_uber_sub")}
                       </p>
                     </div>
                   </div>
@@ -1258,7 +1258,7 @@ function Navigate() {
                     rel="noopener noreferrer"
                     className="ride-launch-btn uber-btn"
                   >
-                    Launch Uber ↗
+                    {t("nav_page_launch_uber")}
                   </a>
                 </div>
 
@@ -1267,9 +1267,9 @@ function Navigate() {
                   <div className="ride-card-left">
                     <div className="ride-logo-icon ola">Ola</div>
                     <div>
-                      <strong>Ola Cabs</strong>
+                      <strong>{t("nav_page_ola_cabs")}</strong>
                       <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>
-                        Mini, Prime, Auto, Bike
+                        {t("nav_page_ola_sub")}
                       </p>
                     </div>
                   </div>
@@ -1279,7 +1279,7 @@ function Navigate() {
                     rel="noopener noreferrer"
                     className="ride-launch-btn ola-btn"
                   >
-                    Launch Ola ↗
+                    {t("nav_page_launch_ola")}
                   </a>
                 </div>
               </div>
@@ -1293,10 +1293,10 @@ function Navigate() {
 
           {/* Map floating quick guide */}
           <div className="map-legend-overlay">
-            <div>🚩 <strong>Green:</strong> Starting Point</div>
-            <div>🏁 <strong>Red:</strong> Final Endpoint</div>
-            <div>📍 <strong>Gold:</strong> Intermediate Waypoints</div>
-            <div>🗺️ <strong>Dark Green:</strong> ExploreX Landmarks</div>
+            <div>🚩 {t("nav_page_legend_start")}</div>
+            <div>🏁 {t("nav_page_legend_end")}</div>
+            <div>📍 {t("nav_page_legend_intermediate")}</div>
+            <div>🗺️ {t("nav_page_legend_landmarks")}</div>
           </div>
         </section>
       </div>
