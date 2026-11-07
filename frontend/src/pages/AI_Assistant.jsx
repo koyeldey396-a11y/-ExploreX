@@ -126,6 +126,7 @@ function AIAssistant() {
 
   const {
     language,
+    t,
     speak,
     pauseSpeech,
     resumeSpeech,

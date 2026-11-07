@@ -309,6 +309,7 @@ const FAMOUS_MONUMENTS = [
 
 export default function Explore_3D() {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
 
   // Active top-level tab
   const [activeTab, setActiveTab] = useState("famous"); // "famous", "community", "upload", "admin"
