@@ -502,3 +502,48 @@ export const updateHiddenGemStatusAdmin = async (gemId, statusData) => {
 
   return data;
 };
+
+// ================= DESTINATION DISCOVERY & GUIDE APIs =================
+
+// SEARCH destinations (hybrid: local MongoDB + global Wikipedia)
+export const searchDestinationsApi = async (query) => {
+  const response = await fetch(`${API_BASE_URL}/destinations/search?q=${encodeURIComponent(query)}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to search destinations");
+  }
+
+  return Array.isArray(data) ? data : [];
+};
+
+// GET rich destination travel dossier
+export const getDestinationDetailsApi = async (queryOrSlug) => {
+  const response = await fetch(`${API_BASE_URL}/destinations/details?q=${encodeURIComponent(queryOrSlug)}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || `Destination "${queryOrSlug}" could not be found.`);
+  }
+
+  return data;
+};
+
+// TRANSLATE travel guide text into target language
+export const translateDestinationApi = async (text, targetLang) => {
+  const response = await fetch(`${API_BASE_URL}/destinations/translate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text, targetLang }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Translation failed");
+  }
+
+  return data;
+};

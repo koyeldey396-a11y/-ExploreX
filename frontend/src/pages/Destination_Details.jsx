@@ -3,7 +3,7 @@ import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom"
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLanguage, SUPPORTED_LANGUAGES } from "../context/LanguageContext";
-import { chatWithAI } from "../services/api";
+import { chatWithAI, getDestinationDetailsApi } from "../services/api";
 
 // Fix Leaflet marker icon asset paths
 delete L.Icon.Default.prototype._getIconUrl;
@@ -151,16 +151,7 @@ function Destination_Details() {
         setError("");
         setTranslatedExtract(null);
 
-        const res = await fetch(
-          `http://localhost:5000/api/destinations/details?q=${encodeURIComponent(querySlug)}`
-        );
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.message || `Destination "${querySlug}" could not be found.`);
-        }
-
-        const data = await res.json();
+        const data = await getDestinationDetailsApi(querySlug);
         setDestination(data);
       } catch (err) {
         console.error("Fetch destination details error:", err);
@@ -216,6 +207,9 @@ function Destination_Details() {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
+    }
+    if (mapContainerRef.current) {
+      mapContainerRef.current._leaflet_id = null;
     }
 
     const map = L.map(mapContainerRef.current, {
@@ -329,6 +323,9 @@ function Destination_Details() {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+      }
+      if (mapContainerRef.current) {
+        mapContainerRef.current._leaflet_id = null;
       }
     };
   }, [destination]);
@@ -1261,22 +1258,46 @@ function Destination_Details() {
         )}
 
         {/* 9. AUTHENTIC TRAVEL VIDEO GUIDE */}
-        {destination.videoEmbedUrl && (
+        {(destination.videoEmbedUrl || destination.videoSearchUrl) && (
           <section className="dest-section dest-video-section">
             <div className="dest-section-header">
               <h2>🎥 {t("video_heading")}</h2>
               <span className="dest-section-sub">
-                Curated travel guide and documentary visual tour
+                Curated travel guide and documentary visual tour for {destination.title}
               </span>
             </div>
 
-            <div className="dest-video-container">
-              <iframe
-                title={`${destination.title} Travel Video Tour`}
-                src={destination.videoEmbedUrl}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+            <div className="dest-video-card-wrap">
+              {destination.videoEmbedUrl && (
+                <div className="dest-video-container">
+                  <iframe
+                    title={`${destination.title} Travel Video Tour`}
+                    src={destination.videoEmbedUrl}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              )}
+
+              <div className="dest-video-direct-bar">
+                <div className="dest-video-direct-info">
+                  <span>📹</span>
+                  <span>Explore 4K travel documentaries, aerial tours, and local guides for {destination.title}</span>
+                </div>
+                <a
+                  href={
+                    destination.videoSearchUrl ||
+                    `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                      destination.title + " travel guide 4k documentary"
+                    )}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="dest-video-direct-btn"
+                >
+                  ▶ Watch on YouTube ↗
+                </a>
+              </div>
             </div>
           </section>
         )}

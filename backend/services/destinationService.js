@@ -129,9 +129,24 @@ function decodeWMOWeather(code) {
   return { condition: "Moderate", icon: "🌤️", advisory: "Good weather for sightseeing." };
 }
 
+// Helper to compute destination match relevance score
+function computeMatchScore(name = "", subtitle = "", q = "") {
+  const queryLower = q.toLowerCase().trim();
+  const nameLower = (name || "").toLowerCase().trim();
+  const subLower = (subtitle || "").toLowerCase().trim();
+
+  if (nameLower === queryLower) return 100;
+  if (nameLower.startsWith(queryLower)) return 80;
+  if (nameLower.split(/[\s,/-]+/).some((w) => w === queryLower)) return 60;
+  if (nameLower.includes(queryLower)) return 40;
+  if (subLower.includes(queryLower)) return 20;
+  return 10;
+}
+
 /**
  * 1. Intelligent Hybrid Destination Search
  * Combines local MongoDB records with global Wikipedia entities.
+ * Prioritizes exact destination names over secondary city/state matches.
  */
 async function searchDestinations(rawQuery) {
   const query = (rawQuery || "").trim();
@@ -155,24 +170,28 @@ async function searchDestinations(rawQuery) {
         { country: mongoRegex },
       ],
     })
-      .limit(4)
+      .limit(6)
       .maxTimeMS(2500);
 
     if (Array.isArray(localPlaces)) {
       localPlaces.forEach((p) => {
         const key = p.name.toLowerCase();
         seenNames.add(key);
+        const subtitle = [p.city, p.state, p.country].filter(Boolean).join(", ");
+        const score = computeMatchScore(p.name, subtitle, query);
+
         results.push({
           id: String(p._id),
           name: p.name,
-          slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-          subtitle: [p.city, p.state, p.country].filter(Boolean).join(", "),
+          slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+          subtitle: subtitle || "ExploreX Curated Destination",
           description: p.description ? p.description.slice(0, 110) + "..." : "ExploreX Curated Destination",
           image: p.image || null,
-          type: "Curated Destination",
+          type: p.category || "Curated Destination",
           icon: "🏛️",
           isLocal: true,
           coordinates: p.latitude && p.longitude ? { lat: p.latitude, lon: p.longitude } : null,
+          score,
         });
       });
     }
@@ -185,7 +204,7 @@ async function searchDestinations(rawQuery) {
   try {
     const openSearchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(
       query
-    )}&limit=10&namespace=0&format=json`;
+    )}&limit=12&namespace=0&format=json`;
 
     const res = await fetchWithTimeout(openSearchUrl, {
       headers: { "User-Agent": "ExploreX-Tourism-Platform/2.0 (explorex@example.com)" },
@@ -196,8 +215,8 @@ async function searchDestinations(rawQuery) {
       const titles = data[1] || [];
       const descriptions = data[2] || [];
 
-      // Fetch summary for top 6 candidates to extract coordinates & thumbnails
-      const summaryPromises = titles.slice(0, 6).map(async (title, idx) => {
+      // Fetch summary for top candidates to extract coordinates & thumbnails
+      const summaryPromises = titles.slice(0, 8).map(async (title, idx) => {
         try {
           const sumUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
           const sumRes = await fetchWithTimeout(sumUrl, {
@@ -208,8 +227,9 @@ async function searchDestinations(rawQuery) {
 
           const desc = sum.description || descriptions[idx] || "";
           const descLower = desc.toLowerCase();
+          const titleLower = sum.title.toLowerCase();
 
-          // Filter out non-place articles
+          // Filter out non-place articles, violent incidents, weapons, sports teams, etc.
           if (
             descLower.includes("album") ||
             descLower.includes("film") ||
@@ -217,18 +237,40 @@ async function searchDestinations(rawQuery) {
             descLower.includes("song") ||
             descLower.includes("actor") ||
             descLower.includes("footballer") ||
+            descLower.includes("cricketer") ||
             descLower.includes("politician") ||
-            descLower.includes("ship")
+            descLower.includes("ship") ||
+            descLower.includes("weapon") ||
+            descLower.includes("missile") ||
+            descLower.includes("military") ||
+            descLower.includes("incident") ||
+            descLower.includes("disaster") ||
+            titleLower.includes("bombing") ||
+            titleLower.includes("bombings") ||
+            titleLower.includes("missile") ||
+            titleLower.includes("conflict") ||
+            titleLower.includes("war of") ||
+            titleLower.includes("constituency") ||
+            titleLower.includes("lok sabha") ||
+            titleLower.includes("vidhan sabha") ||
+            titleLower.includes("massacre") ||
+            titleLower.includes("riot") ||
+            titleLower.includes("election") ||
+            titleLower.includes("shooting") ||
+            titleLower.includes("football club") ||
+            titleLower.includes("f.c.") ||
+            titleLower.includes("national team")
           ) {
             return null;
           }
 
           const { type, icon } = classifyType(sum.title, desc);
+          const score = computeMatchScore(sum.title, desc, query);
 
           return {
             id: `wiki-${sum.pageid || encodeURIComponent(sum.title)}`,
             name: sum.title,
-            slug: sum.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            slug: sum.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
             subtitle: desc || "Global Tourist Destination",
             description: sum.extract ? sum.extract.slice(0, 120) + "..." : desc,
             image: sum.thumbnail?.source || null,
@@ -236,6 +278,7 @@ async function searchDestinations(rawQuery) {
             icon,
             isLocal: false,
             coordinates: sum.coordinates ? { lat: sum.coordinates.lat, lon: sum.coordinates.lon } : null,
+            score,
           };
         } catch (e) {
           return null;
@@ -256,6 +299,9 @@ async function searchDestinations(rawQuery) {
     console.error("Wikipedia OpenSearch error:", err);
   }
 
+  // Sort candidates by match relevance: exact name matches come first
+  results.sort((a, b) => (b.score || 0) - (a.score || 0));
+
   if (results.length > 0) {
     setCache(cacheKey, results);
   }
@@ -275,12 +321,35 @@ async function getDestinationDetails(queryOrSlug) {
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  // Step 1: Fetch authentic Wikipedia summary & coordinates
-  let wikiTitle = query;
+  // Step 0: Hybrid Lookup - Check MongoDB Local Places First
+  let localPlace = null;
+  try {
+    if (typeof queryOrSlug === "string" && queryOrSlug.match(/^[0-9a-fA-F]{24}$/)) {
+      localPlace = await Place.findById(queryOrSlug);
+    }
+    if (!localPlace) {
+      localPlace = await Place.findOne({
+        $or: [
+          { name: new RegExp(`^${query}$`, "i") },
+          { name: new RegExp(`^${query.replace(/ /g, "[- ]?")}$`, "i") },
+        ],
+      });
+    }
+    if (!localPlace) {
+      localPlace = await Place.findOne({
+        name: new RegExp(query, "i"),
+      });
+    }
+  } catch (err) {
+    console.warn("Local DB lookup warning:", err.message);
+  }
+
+  // Step 1: Fetch authentic Wikipedia summary & coordinates (using local name if available)
+  let wikiTitle = localPlace ? localPlace.name : query;
   let summary = null;
 
   try {
-    const sumUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+    const sumUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}`;
     const sumRes = await fetchWithTimeout(sumUrl, {
       headers: { "User-Agent": "ExploreX-Tourism-Platform/2.0 (explorex@example.com)" },
     });
@@ -290,7 +359,7 @@ async function getDestinationDetails(queryOrSlug) {
     } else {
       // Fallback: search opensearch to find exact page title
       const osRes = await fetchWithTimeout(
-        `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=1&format=json`,
+        `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(wikiTitle)}&limit=1&format=json`,
         { headers: { "User-Agent": "ExploreX-Tourism-Platform/2.0 (explorex@example.com)" } }
       );
       const osData = await osRes.json();
@@ -307,14 +376,35 @@ async function getDestinationDetails(queryOrSlug) {
     console.error("Wikipedia summary error:", err);
   }
 
-  if (!summary) {
+  // If neither Wikipedia summary nor local MongoDB place exists, report genuine not found
+  if (!summary && !localPlace) {
     throw new Error(`Destination "${query}" could not be found. Please check spelling.`);
   }
 
-  const { type, icon } = classifyType(summary.title, summary.description);
-  const coordinates = summary.coordinates
-    ? { lat: summary.coordinates.lat, lon: summary.coordinates.lon }
-    : { lat: 20.5937, lon: 78.9629 }; // India default center if unassigned
+  const finalTitle = localPlace ? localPlace.name : (summary?.title || query);
+  const finalSlug = finalTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const defaultSubtitle = localPlace
+    ? [localPlace.city, localPlace.state, localPlace.country].filter(Boolean).join(", ")
+    : "ExploreX World Destination";
+
+  let type = "Curated Destination";
+  let icon = "📍";
+  if (summary) {
+    const classified = classifyType(summary.title, summary.description);
+    type = localPlace?.category || classified.type;
+    icon = classified.icon;
+  } else if (localPlace?.category) {
+    type = localPlace.category;
+    icon = "🏛️";
+  }
+
+  // Prioritize local coordinates if set; else enrich from Wikipedia; else standard center
+  let coordinates = { lat: 20.5937, lon: 78.9629 };
+  if (localPlace?.latitude && localPlace?.longitude) {
+    coordinates = { lat: Number(localPlace.latitude), lon: Number(localPlace.longitude) };
+  } else if (summary?.coordinates) {
+    coordinates = { lat: summary.coordinates.lat, lon: summary.coordinates.lon };
+  }
 
   // Step 2: Fetch Live Weather from Open-Meteo
   let weather = null;
@@ -341,11 +431,19 @@ async function getDestinationDetails(queryOrSlug) {
     console.error("Weather fetch error:", err);
   }
 
-  // Step 3: Fetch Real Photo Gallery from Wikimedia Commons
+  // Step 3: Fetch Real Photo Gallery from Wikimedia Commons / Local DB
   const gallery = [];
-  if (summary.originalimage?.source || summary.thumbnail?.source) {
+  if (localPlace?.image) {
     gallery.push({
-      title: `${summary.title} Panoramic View`,
+      title: `${finalTitle} Featured View`,
+      url: localPlace.image,
+      attribution: "ExploreX Archive",
+      sourceUrl: null,
+    });
+  }
+  if (summary?.originalimage?.source || summary?.thumbnail?.source) {
+    gallery.push({
+      title: `${finalTitle} Panoramic View`,
       url: summary.originalimage?.source || summary.thumbnail?.source,
       attribution: "Wikimedia Commons / CC-BY-SA",
       sourceUrl: summary.content_urls?.desktop?.page || null,
@@ -353,8 +451,9 @@ async function getDestinationDetails(queryOrSlug) {
   }
 
   try {
+    const photoLookupTitle = summary?.title || finalTitle;
     const photoUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=images&titles=${encodeURIComponent(
-      wikiTitle
+      photoLookupTitle
     )}&gimlimit=30&prop=imageinfo&iiprop=url|size&iiurlwidth=1200&format=json`;
 
     const photoRes = await fetchWithTimeout(photoUrl, {
@@ -431,7 +530,7 @@ async function getDestinationDetails(queryOrSlug) {
 
       const filteredList = list.filter((item) => {
         const lower = item.title.toLowerCase();
-        if (lower === summary.title.toLowerCase()) return false;
+        if (lower === finalTitle.toLowerCase()) return false;
         return !excludedKeywords.some((kw) => lower.includes(kw));
       });
 
@@ -497,7 +596,7 @@ async function getDestinationDetails(queryOrSlug) {
       category: "Sightseeing & Heritage",
       icon: "🏛️",
       items: [
-        `Explore the historic architecture, iconic viewpoints, and landmarks of ${summary.title}`,
+        `Explore the historic architecture, iconic viewpoints, and landmarks of ${finalTitle}`,
         "Guided heritage walking tour through ancient bazaars and cultural quarters",
         "Photography excursions during golden hour sunrise and sunset",
       ],
@@ -506,7 +605,7 @@ async function getDestinationDetails(queryOrSlug) {
       category: "Culture & Local Flavors",
       icon: "🍲",
       items: [
-        `Taste authentic regional culinary specialties and traditional desserts of ${summary.title}`,
+        `Taste authentic regional culinary specialties and traditional desserts of ${finalTitle}`,
         "Browse local handicraft emporiums, spice markets, and artisanal textile stalls",
         "Experience traditional evening music, folk celebrations, and seasonal festivals",
       ],
@@ -523,14 +622,15 @@ async function getDestinationDetails(queryOrSlug) {
   ];
 
   // Step 6: Travel Essentials & Budget Estimation
+  const descForCheck = (summary?.description || defaultSubtitle || "").toLowerCase();
   const isColdOrHills =
     coordinates.lat > 30 ||
-    summary.description?.toLowerCase().includes("hill") ||
-    summary.description?.toLowerCase().includes("mountain");
+    descForCheck.includes("hill") ||
+    descForCheck.includes("mountain");
   const isBeach =
-    summary.description?.toLowerCase().includes("island") ||
-    summary.description?.toLowerCase().includes("beach") ||
-    summary.description?.toLowerCase().includes("coastal");
+    descForCheck.includes("island") ||
+    descForCheck.includes("beach") ||
+    descForCheck.includes("coastal");
 
   const travelInfo = {
     bestTime: isColdOrHills
@@ -544,8 +644,8 @@ async function getDestinationDetails(queryOrSlug) {
       ? "3 – 4 Days"
       : "1 – 2 Days",
     howToReach: {
-      air: `Nearest international or domestic airport serving ${summary.title} with regular connections to major transit hubs.`,
-      rail: `Connected via express and superfast trains linking ${summary.title} to primary national railway networks.`,
+      air: `Nearest international or domestic airport serving ${finalTitle} with regular connections to major transit hubs.`,
+      rail: `Connected via express and superfast trains linking ${finalTitle} to primary national railway networks.`,
       road: `Connected by national expressways and state highways with frequent deluxe AC bus services and private taxis.`,
     },
     localTransport: "Metro rail, auto-rickshaws, city buses, app-based ride services (Uber & Ola), and rental vehicles.",
@@ -588,19 +688,22 @@ async function getDestinationDetails(queryOrSlug) {
     ],
   };
 
-  // Step 7: Authentic Travel Video Search Embed
-  const videoEmbedUrl = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(
-    summary.title + " travel guide tour 4k documentary"
+  // Step 7: Authentic Travel Video Direct Link & Embed
+  const videoSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(
+    finalTitle + " travel guide documentary 4k"
+  )}`;
+  const videoEmbedUrl = `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(
+    finalTitle + " travel guide 4k"
   )}`;
 
   const result = {
-    title: summary.title,
-    slug: summary.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-    subtitle: summary.description || "World Heritage Destination",
+    title: finalTitle,
+    slug: finalSlug,
+    subtitle: summary?.description || defaultSubtitle,
     type,
     icon,
-    extract: summary.extract || "",
-    heroImage: gallery[0]?.url || summary.thumbnail?.source || null,
+    extract: summary?.extract || localPlace?.description || "Curated destination in ExploreX.",
+    heroImage: gallery[0]?.url || localPlace?.image || summary?.thumbnail?.source || null,
     coordinates,
     weather,
     gallery,
@@ -609,7 +712,10 @@ async function getDestinationDetails(queryOrSlug) {
     travelInfo,
     budget,
     videoEmbedUrl,
-    wikipediaUrl: summary.content_urls?.desktop?.page || null,
+    videoSearchUrl,
+    wikipediaUrl: summary?.content_urls?.desktop?.page || null,
+    isLocal: Boolean(localPlace),
+    localId: localPlace ? String(localPlace._id) : null,
   };
 
   setCache(cacheKey, result);

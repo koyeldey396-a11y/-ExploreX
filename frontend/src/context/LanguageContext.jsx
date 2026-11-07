@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { TRANSLATIONS } from "../locales";
+import { translateDestinationApi } from "../services/api";
 
 // Supported 9 Languages with native scripts, TTS/STT speech codes, and flags
 export const SUPPORTED_LANGUAGES = [
@@ -268,18 +269,10 @@ export const LanguageProvider = ({ children }) => {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/destinations/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, targetLang }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const result = data.translatedText || text;
-        translationCacheRef.current.set(cacheKey, result);
-        return { translatedText: result, targetLang, fallback: Boolean(data.fallback) };
-      }
+      const data = await translateDestinationApi(text, targetLang);
+      const result = data.translatedText || text;
+      translationCacheRef.current.set(cacheKey, result);
+      return { translatedText: result, targetLang, fallback: Boolean(data.fallback) };
     } catch (err) {
       console.warn("Translation request failed, using original text:", err.message);
     }

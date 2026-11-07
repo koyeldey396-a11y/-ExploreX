@@ -11,6 +11,7 @@ import {
   getReviews,
   addReview,
   deleteReview,
+  searchDestinationsApi,
 } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -144,16 +145,11 @@ function Explore() {
     const timer = setTimeout(async () => {
       try {
         setSearchingGlobal(true);
-        const res = await fetch(
-          `http://localhost:5000/api/destinations/search?q=${encodeURIComponent(query)}`
-        );
-        if (res.ok) {
-          const list = await res.json();
-          const items = Array.isArray(list) ? list : [];
-          setAutocompleteResults(items);
-          setGlobalDiscoveryList(items.filter((item) => !item.isLocal));
-          setShowDropdown(items.length > 0);
-        }
+        const list = await searchDestinationsApi(query);
+        const items = Array.isArray(list) ? list : [];
+        setAutocompleteResults(items);
+        setGlobalDiscoveryList(items.filter((item) => !item.isLocal));
+        setShowDropdown(items.length > 0);
       } catch (err) {
         console.warn("Global autocomplete error:", err);
       } finally {
@@ -201,15 +197,36 @@ function Explore() {
     setShowDropdown(false);
   };
 
-  // Select item from Autocomplete
+  // Select item from Autocomplete (both local and global open travel guide)
   const handleSelectAutocomplete = (item) => {
     setShowDropdown(false);
-    if (item.isLocal) {
-      setSearchQuery(item.name);
-      setSearchTerm(item.name);
-    } else {
-      navigate(`/destination/${item.slug}`);
+    const targetSlug = item.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    navigate(`/destination/${targetSlug}`);
+  };
+
+  // Submit search query (Enter key or Search button)
+  const handleSearchSubmit = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    setShowDropdown(false);
+
+    // If autocomplete suggestions exist, pick exact match or top candidate
+    if (autocompleteResults.length > 0) {
+      const queryLower = query.toLowerCase();
+      const exactMatch = autocompleteResults.find(
+        (item) => item.name.toLowerCase() === queryLower
+      );
+      const chosen = exactMatch || autocompleteResults[0];
+      const targetSlug = chosen.slug || chosen.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      navigate(`/destination/${targetSlug}`);
+      return;
     }
+
+    // Direct navigation attempting destination discovery using entered query
+    const directSlug = query.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    navigate(`/destination/${directSlug}`);
   };
 
   // ================= REVIEWS COMPUTATION =================
@@ -504,56 +521,78 @@ function Explore() {
       {/* ================= 1. GLOBAL DESTINATION SEARCH BAR WITH AUTOCOMPLETE & VOICE ================= */}
       <section className="explore-global-search-section">
         <div className="global-search-card" ref={searchWrapRef}>
-          <div className="global-search-input-wrap">
-            <span className="search-lead-icon" aria-hidden="true">🔍</span>
-            <input
-              type="text"
-              className="global-search-input"
-              placeholder={t("search_placeholder") || "Search any destination, city, state, country, monument or attraction..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => {
-                if (autocompleteResults.length > 0) setShowDropdown(true);
-              }}
-              aria-label="Search destinations globally"
-            />
+          <form
+            className="global-search-form"
+            onSubmit={handleSearchSubmit}
+            role="search"
+            aria-label="Global destination search"
+          >
+            <div className="global-search-input-wrap">
+              <span className="search-lead-icon" aria-hidden="true">🔍</span>
+              <input
+                type="text"
+                className="global-search-input"
+                placeholder={t("search_placeholder") || "Search any destination, city, state, country, monument or attraction..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  if (autocompleteResults.length > 0) setShowDropdown(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearchSubmit(e);
+                  }
+                }}
+                aria-label="Search destinations globally"
+              />
 
-            {searchingGlobal && (
-              <span className="search-inline-spinner" title="Searching globally..."></span>
-            )}
+              {searchingGlobal && (
+                <span className="search-inline-spinner" title="Searching globally..."></span>
+              )}
 
-            {searchQuery && (
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-icon-btn"
+                  onClick={handleClearSearch}
+                  title="Clear Search"
+                  aria-label="Clear Search"
+                >
+                  ✕
+                </button>
+              )}
+
               <button
                 type="button"
-                className="search-clear-icon-btn"
-                onClick={handleClearSearch}
-                title="Clear Search"
-                aria-label="Clear Search"
+                className={`search-mic-action-btn ${isListening ? "listening" : ""}`}
+                onClick={handleMicClick}
+                disabled={!isSpeechRecognitionSupported}
+                title={
+                  !isSpeechRecognitionSupported
+                    ? t("not_supported_stt")
+                    : isListening
+                    ? t("stop_listening")
+                    : t("voice_search")
+                }
+                aria-label="Voice Search"
               >
-                ✕
+                <span>{isListening ? "🔴" : "🎙️"}</span>
+                <span className="mic-label-text">
+                  {isListening ? t("listening") : t("voice_search")}
+                </span>
               </button>
-            )}
 
-            <button
-              type="button"
-              className={`search-mic-action-btn ${isListening ? "listening" : ""}`}
-              onClick={handleMicClick}
-              disabled={!isSpeechRecognitionSupported}
-              title={
-                !isSpeechRecognitionSupported
-                  ? t("not_supported_stt")
-                  : isListening
-                  ? t("stop_listening")
-                  : t("voice_search")
-              }
-              aria-label="Voice Search"
-            >
-              <span>{isListening ? "🔴" : "🎙️"}</span>
-              <span className="mic-label-text">
-                {isListening ? t("listening") : t("voice_search")}
-              </span>
-            </button>
-          </div>
+              <button
+                type="submit"
+                className="search-submit-btn"
+                title="Search Destination"
+                aria-label="Search Destination"
+              >
+                <span>Search</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </form>
 
           {/* Autocomplete Suggestions Dropdown */}
           {showDropdown && autocompleteResults.length > 0 && (

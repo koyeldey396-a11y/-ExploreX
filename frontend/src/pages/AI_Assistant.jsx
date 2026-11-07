@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { getAIStatus, chatWithAI } from "../services/api";
+import { getAIStatus, chatWithAI, getDestinationDetailsApi } from "../services/api";
 import { useLanguage } from "../context/LanguageContext";
 
 const QUICK_PROMPTS = [
@@ -167,8 +167,7 @@ function AIAssistant() {
   // Load destination context if provided in query
   useEffect(() => {
     if (requestedDestination) {
-      fetch(`http://localhost:5000/api/destinations/details?q=${encodeURIComponent(requestedDestination)}`)
-        .then((r) => (r.ok ? r.json() : null))
+      getDestinationDetailsApi(requestedDestination)
         .then((data) => {
           if (data && data.title) {
             setDestinationContext(data);

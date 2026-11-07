@@ -25,19 +25,30 @@ app.use((req, res, next) => {
   next();
 });
 
-// Production-ready CORS configuration
-const allowedOrigins = process.env.CLIENT_ORIGIN
+// Production-ready CORS configuration supporting Vite dev server ports 5173-5180
+const configuredOrigins = process.env.CLIENT_ORIGIN
   ? process.env.CLIENT_ORIGIN.split(",").map((o) => o.trim())
-  : ["http://localhost:5173", "http://127.0.0.1:5173"];
+  : [];
+
+const localDevPattern = /^http:\/\/(localhost|127\.0\.0\.1):(517[3-9]|5180)$/;
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
-        callback(null, true);
-      } else {
-        callback(new Error("Blocked by CORS policy"));
+      // Allow requests with no origin (like mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Check configured production origins
+      if (configuredOrigins.includes(origin) || configuredOrigins.includes("*")) {
+        return callback(null, true);
       }
+
+      // Check allowed local development Vite ports 5173 - 5180
+      if (localDevPattern.test(origin)) {
+        return callback(null, true);
+      }
+
+      callback(new Error(`Blocked by CORS policy: origin ${origin} is not allowed`));
     },
     credentials: true,
   })
